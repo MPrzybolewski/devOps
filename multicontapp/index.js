@@ -30,12 +30,20 @@ app.get("/nwd", (req, res) => {
         return;
       });
     } else {
-      const nwd = countNWD(l1, l2);
+      const nwd = getNWD(l1, l2);
       client.set(key, nwd);
       res.send(nwd);
     }
   });
 });
+
+function getNWD(l1, l2) {
+  if (l2 === 0) {
+    return l1;
+  }
+
+  return getNWD(l2, l1 % l2);
+};
 
 app.listen(8090, () => {
   console.log("Listening on port 8090");
