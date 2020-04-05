@@ -4,5 +4,6 @@ services:
     image: 'redis'
   my-webapp:
     build: .
-    ports: 
+    ports:
       - "9090:8090"
+    restart: on-failure
