@@ -4,7 +4,7 @@ services:
   - docker
 
 before_install:
-  - docker build -t mprzybolewski/frontend -f Dockerfile.dev .
+  - docker build -t mprzybolewski/frontend -f Dockerfile.dev /frontend
 
 script:
   - docker run -e CI=true mprzybolewski/frontend yarn test
