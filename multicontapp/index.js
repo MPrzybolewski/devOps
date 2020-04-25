@@ -1,49 +1,80 @@
 const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const keys = require('./keys');
 const redis = require('redis');
-const process = require('process');
 
 const app = express();
+app.use(cors());
+app.use(bodyParser.json());
 
-const client = redis.createClient({
-  host: 'my-redis-server',
+console.log(keys);
+
+const client  = redis.createClient({
+  host: keys.redisHost,
   port: 6379
 });
 
-client.set('counter', 0);
-
-app.get('/', (req, resp) => {
-  client.get('counter', (err, counter_value) => {
-    resp.send('Counter: ' + counter_value);
-    client.set('counter', parseInt(counter_value) + 1);
-  });
+const { Pool } = require('pg');
+const pgClient = new Pool({
+  user: keys.pgUser,
+  host: keys.pgHost,
+  database: keys.pgDatabase,
+  password: keys.pgPassword,
+  port: keys.pgPort
 });
+
+pgClient.on('error', () => console.log('Lost PG connection'));
+
+pgClient
+  .query('CREATE TABLE IF NOT EXISTS values (number INT)')
+  .catch(err => console.log(err));
 
 app.get("/nwd", (req, res) => {
-  const l1 = req.query.l1;
-  const l2 = req.query.l2;
+  let number1 = req.query.firstNumber;
+  let number2 = req.query.secondNumber;
 
-  const key = `${l1}_${l2}`;  
-  client.exists(key, (err, exists) => {
-    if (exists === 1) {
-      client.get(key, (err, nwd) => {
-        res.send(nwd);
-        return;
+  const key = `${number1}-${number2}`;
+
+  client.exists(key, (err, ok) => {
+    var nwd;
+    if (ok === 1) {
+      client.get(key, (err, value) => {
+        nwd = value;
+        addNwd(nwd);
       });
     } else {
-      const nwd = getNWD(l1, l2);
+      nwd = getNWD(number1, number2);
+      addNwd(nwd);
       client.set(key, nwd);
-      res.send(nwd);
     }
+    res.send({ value: nwd });
   });
 });
 
-function getNWD(l1, l2) {
-  if (l2 === 0) {
-    return l1;
-  }
+app.get("/getAllNwd", (req, res) => {
+  pgClient
+      .query('Select number from values', (err, value) => {
+        if (err) {
+          console.log(err);
+        } else {
+          res.send( {values: value.rows})
+        }
+      })
+});
 
-  return getNWD(l2, l1 % l2);
-};
+function getNWD(number1, number2){
+  if (number2 === 0) {
+    return number1;
+  }
+  return getNWD(number2, number1 % number2)
+}
+
+function addNwd(nwd) {
+  pgClient
+      .query('INSERT INTO values VALUES ($1)', [nwd])
+      .catch(err => console.log(err));
+}
 
 app.listen(8090, () => {
   console.log("Listening on port 8090");
