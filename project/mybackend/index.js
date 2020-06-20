@@ -1,26 +1,26 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const keys = require('./keys');
-const redis = require('redis');
-
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+const redis = require('redis');
+const { Pool } = require('pg');
+const keys = require('./keys');
 
-console.log(keys);
+const {v4: uuidv4} = require('uuid');
+
+const appId = uuidv4();
+
+const port = 5000;
 
 const client  = redis.createClient({
     host: keys.redisHost,
-    port: keys.redisPort
+    port: keys.redisPort,
+    retry_strategy: () => 1000
 });
 
-const { Pool } = require('pg');
+
 
 const pgClient = new Pool({
     user: keys.pgUser,
     host: keys.pgHost,
-    database: keys.pgDatabase,
     password: keys.pgPassword,
     port: keys.pgPort
 });
@@ -31,8 +31,8 @@ pgClient
     .query('CREATE TABLE IF NOT EXISTS values (number FLOAT)')
     .catch(err => console.log(err));
 
-app.get('/', (req, res) => {
-    res.send('Hello from backend');
+app.get('/', (req, resp) => {
+	resp.send(`[${appId} Hello from my backend app]`)
 });
 
 app.get('/arithmeticSum', (req, res) => {
@@ -68,7 +68,6 @@ function addArithmeticSumToDB(arithmeticSum) {
 }
 
 
-const port = 5000;
-app.listen(port, () => {
-    console.log(`Backend app listening on port ${port}`);
-});
+app.listen(port, err => {
+	console.log(`Listening on port ${port}`);
+})
